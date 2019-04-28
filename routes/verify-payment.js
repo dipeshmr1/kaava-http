@@ -2,29 +2,27 @@ const promise = require('bluebird')
 // const query = require('../db/mysql-connection').query
 const appointment = require('../modules/appointment')
 const APPOINTMENT = new appointment()
-const initiateAppointmentBooking = promise.promisify(APPOINTMENT.initiateAppointmentBooking)
-const logger = require('../utils/logger')
+const verifyPaymentAndBook = promise.promisify(APPOINTMENT.verifyPaymentAndBook)
 
-async function bookAppointment(req, res) {
+async function verifyPayment(req, res) {
 
     let data = req.body
     try{
-        let result = await initiateAppointmentBooking(data)
+        let result = await verifyPaymentAndBook(data)
         res.status(200).send(result)
 
     }catch(err) {
         logger.error({
             ERROR_CODE: err.code,
-            REFERENCE: "initiate book appointment"
+            REFERENCE: "verify payment"
         })
         let errorLog = {
             ERROR_CODE: err.code,
-            REFERENCE: "initiate book appointment"
+            REFERENCE: "verify payment"
         }
         res.status(500).send(JSON.stringify(errorLog))
-
     }
     
 }
 
-module.exports = bookAppointment
+module.exports = verifyPayment

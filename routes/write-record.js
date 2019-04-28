@@ -20,8 +20,10 @@ async function writeToMongo(req, res) {
         } else if(req.query.type == 'doctor'){
             // res.status(200).send(JSON.stringify(req.body))
             result = await writeDoctorRecord(req.body)
+            sendResponse()
         } else {
             result = await writeHospitalRecord(req.body)
+            sendResponse()
         }
         // sendResponse()
     } catch(e){

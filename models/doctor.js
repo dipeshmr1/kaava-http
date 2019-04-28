@@ -19,7 +19,9 @@ const doctorSchema = mongoose.Schema({
         district: String,
         timing: [{
             day: Number,
-            time: Number
+            time: [{
+                type: String
+            }]
         }],
         address_link: String,
         image_link: String,

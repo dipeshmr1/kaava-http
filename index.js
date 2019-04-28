@@ -1,6 +1,5 @@
-const nr = require('newrelic')
+// const nr = require('newrelic')
 const express = require('express')
-const mustacheExpress = require('mustache-express');
 const app = express()
 const passport = require('passport')
 
@@ -19,8 +18,6 @@ app.listen(8000, () => console.log('Example app listening on port'))
 function initializeMiddlewares() {
   const bodyParser = require('body-parser')
   const session = require('express-session');
-  const flash = require('connect-flash');
-
 
 
   // pass passport for configuration
@@ -38,11 +35,6 @@ function initializeMiddlewares() {
 
   // persistent login sessions
   app.use(passport.session())
-
-  // use connect-flash for flash messages stored in session
-  app.use(flash())
-
-  app.use(express.static('kava/public'));
 
   app.use(bodyParser.json());
 
@@ -73,11 +65,14 @@ function initializeRoutes() {
 
   const writeRecord = require('./routes/write-record')
   const bookAppointment = require('./routes/book-appointment')
-  const searchRecord = require('./routes/search-record')
+  const verifyPayment = require('./routes/verify-payment')
+  const searchRecord = require('./routes/search-record').searchRecord
+  const searchRecordByService = require('./routes/search-record').searchRecordByService
+  const searchRecordBySpeciality = require('./routes/search-record').searchRecordBySpeciality
   const insertCount = require('./routes/insert-count-status')
   const showBookingDetails = require('./routes/show-bookings')
   const getProfileDetails = require('./routes/get-profile')
-
+  const emailPrescription = require('./routes/email-prescription')
 
 
   app.get('/auth/facebook', passport.authenticate('facebook', { session: false }))
@@ -113,6 +108,8 @@ function initializeRoutes() {
 
 
 
+  //email prescription
+  app.get('/email-prescription', emailPrescription)
 
   //Write record into mongo
   app.post('/write-to-mongo', writeRecord)
@@ -120,8 +117,17 @@ function initializeRoutes() {
   //book an appointment
   app.post('/book-appointment', bookAppointment)
 
-  //search doctors,hospitals by filtering on services, specialities
+  //verify payment and save into booking_details, user_to_booking, venue_booking
+  app.post('/verify-payment', verifyPayment)
+
+  // search doctors,hospitals by filtering on services, specialities
   app.get('/search-record/:key', searchRecord)
+
+  // clinic and hospitals by service filters
+  app.get('/search-record-by-service/:key',searchRecordByService)
+
+  // doctors by speciality
+  app.get('/search-record-by-speciality/:key', searchRecordBySpeciality)
 
   //insert 0 count to count_status
   app.get('/insert-ignore-count', insertCount)
