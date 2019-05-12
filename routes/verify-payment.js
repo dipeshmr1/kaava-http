@@ -3,6 +3,7 @@ const promise = require('bluebird')
 const appointment = require('../modules/appointment')
 const APPOINTMENT = new appointment()
 const verifyPaymentAndBook = promise.promisify(APPOINTMENT.verifyPaymentAndBook)
+const logger = require('../utils/logger')
 
 async function verifyPayment(req, res) {
 

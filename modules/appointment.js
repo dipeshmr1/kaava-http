@@ -230,6 +230,7 @@ appointment.prototype.verifyPaymentAndBook = async (data, callback) => {
             await query(MYSQL_ACTION.COMMIT)
             result = {
                 'PAYMENT_STATUS' : 'SUCCESS',
+                'MESSAGE': 'Thank you for booking an appointment, you can see your appointment on appointment box'
             }
         }
 
