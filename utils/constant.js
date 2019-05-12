@@ -1,0 +1,20 @@
+let MYSQL_ACTION = {
+    COMMIT : 'COMMIT',
+    START_TRANSACTION : 'START TRANSACTION',
+    ROLLBACK : 'ROLLBACK'
+}
+
+let PAYMENT_MODE = {
+    CASH : 'CASH'
+}
+
+let BOOKING_STATUS = {
+    PAID : 'PAID',
+    CANCEL : 'CANCEL'
+}
+
+module.exports = {
+    MYSQL_ACTION,
+    PAYMENT_MODE,
+    BOOKING_STATUS
+}

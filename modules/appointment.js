@@ -2,9 +2,11 @@ const promise = require('bluebird')
 const shortId = require('shortid')
 const request = require('request')
 const asyncRequest = promise.promisify(request)
-let connection = require('../db/mysql-connection').connection
+const connection = require('../db/mysql-connection').connection
 const util = require('util')
 const nonTransactionQuery = require('../db/mysql-connection').nonTransactionQuery
+const PAYMENT_MODE = require('../utils/constant').PAYMENT_MODE
+const MYSQL_ACTION = require('../utils/constant').MYSQL_ACTION
 
 function appointment() {
 
@@ -32,7 +34,6 @@ appointment.prototype.initiateAppointmentBooking = async (data, callback) => {
     let paymentMode = data.payment_mode
     let productId = appointmentDate + '-' + appointmentTime
     let referenceId = data.reference_id
-    let paymentStatus = 'CASH'
 
     let bookingId = shortId.generate()
     let today = new Date()
@@ -42,16 +43,13 @@ appointment.prototype.initiateAppointmentBooking = async (data, callback) => {
     let result = ''
 
 
-    let startTransaction = 'START TRANSACTION'
-    let commitTransaction = 'COMMIT'
-    let rollbackTransaction = 'ROLLBACK'
     let checkBookingStatementStatus = 'select max_cash_count, current_cash_count, max_prepaid_count, current_prepaid_count from count_status where appointment_date = "' + appointmentDate +
         '" and venue_id="' + venueId + '" and doctor_id = "' + doctorId + '" and appointment_time="' + appointmentTime + '" for update'
 
     let bookingStatement = "INSERT INTO booking_details VALUES('" + bookingId + "','" + bookingDateTime + "','" + venueId + "','" + venueName + "','" +
         venueRegion + "','" + appointmentDate + "','" + appointmentTime + "','" + doctorId + "','" + doctorName + "','" + userId + "','" +
         userName + "','" + userDistrict + "','" + userRegion + "','" + userContactNumber + "','" + userEmailId + "','" + patientName
-        + "'," + patientAge + ",'" + patientContactNumber + "','" + paymentMode + "'," + amount + ",'" + paymentStatus + "','" + productId + "','" + referenceId + "')"
+        + "'," + patientAge + ",'" + patientContactNumber + "','" + paymentMode + "'," + amount + ",'" + PAYMENT_MODE.CASH + "','" + productId + "','" + referenceId + "')"
 
     let userToBookingStatement = "INSERT INTO user_to_booking VALUES('" + userId + "','" + appointmentDate + "','" + bookingId + "')"
 
@@ -61,12 +59,12 @@ appointment.prototype.initiateAppointmentBooking = async (data, callback) => {
     let query = await createConnection()
 
     try {
-        await query(startTransaction)
+        await query(MYSQL_ACTION.START_TRANSACTION)
         let statusResult = await query(checkBookingStatementStatus)
         let statusData = {}
         statusData.queueCount = 0
 
-        if (paymentMode == 'CASH') {
+        if (paymentMode == PAYMENT_MODE.CASH) {
 
             let maxCashCount = 0
             statusResult.forEach(element => {
@@ -82,14 +80,21 @@ appointment.prototype.initiateAppointmentBooking = async (data, callback) => {
                     '" and venue_id="' + venueId + '" and doctor_id = "' + doctorId + '" and appointment_time="' + appointmentTime + '"'
                 // console.log(bookingStatement)
                 await query(updateBookingStatusStatement)
-                result = await query(bookingStatement)
+                await query(bookingStatement)
                 await query(userToBookingStatement)
                 await query(venueToBookingStatement)
-                await query(commitTransaction)
+                await query(MYSQL_ACTION.COMMIT)
+                result = {
+                    'SEAT_RESERVED' : true,
+                    'MESSAGE': 'Thank you for booking an appointment, you can see your appointment on appointment box'
+                }
 
             } else {
-                await query(rollbackTransaction)
-                result = 'All Seat Reserved For Cash, Try Using Any Prepaid Method'
+                await query(MYSQL_ACTION.ROLLBACK)
+                result = {
+                    'SEAT_RESERVED' : false,
+                    'MESSAGE': 'All appointments are booked through Cash, Try Using Any Prepaid Method'
+                }
             }
             callback(null, result)
 
@@ -108,19 +113,24 @@ appointment.prototype.initiateAppointmentBooking = async (data, callback) => {
                 let updateBookingStatusStatement = 'UPDATE count_status SET current_prepaid_count=' + statusData.queueCount + ' where appointment_date = "' + appointmentDate +
                     '" and venue_id="' + venueId + '" and doctor_id = "' + doctorId + '" and appointment_time="' + appointmentTime + '"'
 
-                await query(startTransaction)
+                await query(MYSQL_ACTION.START_TRANSACTION)
                 await query(updateBookingStatusStatement)
-                await query(commitTransaction)
-                result = "Temporary Seat Reserved"
+                await query(MYSQL_ACTION.COMMIT)
+                result = {
+                    'SEAT_RESERVED' : true,
+                }
 
             } else {
-                await query(rollbackTransaction)
-                result = 'All Seat Reserved Try For Other Timing'
+                await query(MYSQL_ACTION.ROLLBACK)
+                result = {
+                    'SEAT_RESERVED' : false,
+                    'MESSAGE': 'All prepaid appointments are booked for now, Try using cash or Try again later'
+                }
             }
             callback(null, result)
         }
     } catch (err) {
-        await query(rollbackTransaction)
+        await query(MYSQL_ACTION.ROLLBACK)
         callback(err, null)
     }
 
@@ -149,7 +159,6 @@ appointment.prototype.verifyPaymentAndBook = async (data, callback) => {
     let paymentMode = data.payment_mode
     let productId = appointmentDate + '-' + appointmentTime
     let referenceId = data.reference_id
-    let paymentStatus = 'PAID'
 
     let bookingId = shortId.generate()
     let today = new Date()
@@ -158,11 +167,6 @@ appointment.prototype.verifyPaymentAndBook = async (data, callback) => {
     let bookingDateTime = date + ' ' + time
     let result = ''
 
-
-
-    let startTransaction = 'START TRANSACTION'
-    let commitTransaction = 'COMMIT'
-    let rollbackTransaction = 'ROLLBACK'
 
     let checkBookingStatementStatus = 'select max_cash_count, current_cash_count, max_prepaid_count, current_prepaid_count from count_status where appointment_date = "' + appointmentDate +
         '" and venue_id="' + venueId + '" and doctor_id = "' + doctorId + '" and appointment_time="' + appointmentTime + '" for update'
@@ -194,9 +198,9 @@ appointment.prototype.verifyPaymentAndBook = async (data, callback) => {
         let bookingStatement = "INSERT INTO booking_details VALUES('" + bookingId + "','" + bookingDateTime + "','" + venueId + "','" + venueName + "','" +
             venueRegion + "','" + appointmentDate + "','" + appointmentTime + "','" + doctorId + "','" + doctorName + "','" + userId + "','" +
             userName + "','" + userDistrict + "','" + userRegion + "','" + userContactNumber + "','" + userEmailId + "','" + patientName
-            + "'," + patientAge + ",'" + patientContactNumber + "','" + paymentMode + "'," + amount + ",'" + paymentStatus + "','" + productId + "','" + referenceId + "')"
+            + "'," + patientAge + ",'" + patientContactNumber + "','" + paymentMode + "'," + amount + ",'" + PAYMENT_MODE.CASH + "','" + productId + "','" + referenceId + "')"
         //start transaction session
-        await query(startTransaction)
+        await query(MYSQL_ACTION.START_TRANSACTION)
 
         if (responseFromEsewaVerificationString.includes('failure')) {
             let statusResult = await query(checkBookingStatementStatus)
@@ -212,22 +216,26 @@ appointment.prototype.verifyPaymentAndBook = async (data, callback) => {
                 '" and venue_id="' + venueId + '" and doctor_id = "' + doctorId + '" and appointment_time="' + appointmentTime + '"'
             //update count_status for failed payment
             await query(updateBookingStatusStatement)
-            await query(commitTransaction)
-            result = 'Booking Failed Because Of Payment Failure'
-
+            await query(MYSQL_ACTION.COMMIT)
+            result = {
+                'PAYMENT_STATUS' : 'FAILED',
+                'MESSAGE' : 'Booking Failed Because Of Payment Failure'
+            }
+            
+        
         } else {
             result = await query(bookingStatement)
             await query(userToBookingStatement)
             await query(venueToBookingStatement)
-            await query(commitTransaction)
-            console.log('payment success')
+            await query(MYSQL_ACTION.COMMIT)
+            result = {
+                'PAYMENT_STATUS' : 'SUCCESS',
+            }
         }
-
-
 
         callback(null, result)
     } catch (err) {
-        await query(rollbackTransaction)
+        await query(MYSQL_ACTION.ROLLBACK)
         callback(err, null)
     }
 
@@ -270,7 +278,7 @@ appointment.prototype.showBookingDetails = async (data, callback) => {
     }
 
     let showBookingIdsStatement = "SELECT * FROM " + table + " where id='" + id + "' and appointment_date='" + appointmentDate + "'"
-    console.log(showBookingIdsStatement)
+
     try {
         let hospitalToBooking = await nonTransactionQuery(showBookingIdsStatement)
         let bookingId = []
@@ -283,7 +291,7 @@ appointment.prototype.showBookingDetails = async (data, callback) => {
         let bookingDetails = await nonTransactionQuery(showBookingDetailsStatement)
         callback(null, bookingDetails)
     } catch (err) {
-        console.log("showbookingDetails error", err)
+        // console.log("showbookingDetails error", err)
         callback(err, null)
     }
 }

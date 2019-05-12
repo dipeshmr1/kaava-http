@@ -10,9 +10,6 @@ async function showBooking(req, res){
 
     try{
         result = await showBookingDetails(data)
-        // console.log("yo",result)
-        // let responseData = {}
-        // responseData.bookingId = result
         sendResponse(result)
         
     } catch(err){
