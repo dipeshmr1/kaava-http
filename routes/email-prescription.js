@@ -13,8 +13,8 @@ try{
     port: 465,
     secure: true, // true for 465, false for other ports
     auth: {
-      user: 'dipeshmr1@gmail.com', // generated ethereal user
-      pass: 'Hellonemo@123' // generated ethereal password
+      user: '', // generated ethereal user
+      pass: '' // generated ethereal password
     }
   })
 
